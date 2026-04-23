@@ -169,7 +169,32 @@ fn camera_start_position() -> Vec3 {
 }
 
 fn chassis_base_color() -> Color {
-    Color::rgb(0.18, 0.28, 0.86)
+    Color::rgb(0.72, 0.08, 0.08)
+}
+
+fn chassis_trim_color() -> Color {
+    Color::rgb(0.10, 0.10, 0.11)
+}
+
+#[allow(dead_code)]
+fn chassis_glass_color() -> Color {
+    Color::rgba(0.05, 0.08, 0.12, 0.78)
+}
+
+fn chassis_bumper_color() -> Color {
+    Color::rgb(0.07, 0.08, 0.09)
+}
+
+fn chassis_chrome_color() -> Color {
+    Color::rgb(0.82, 0.84, 0.88)
+}
+
+fn chassis_headlight_color() -> Color {
+    Color::rgb(1.0, 0.97, 0.78)
+}
+
+fn chassis_taillight_color() -> Color {
+    Color::rgb(0.78, 0.08, 0.06)
 }
 
 fn wheel_base_color() -> Color {
@@ -192,6 +217,7 @@ fn apply_time_scale(mut time: ResMut<Time<Virtual>>) {
     time.set_relative_speed(ANIMATION_SPEED_MULTIPLIER);
 }
 
+#[allow(dead_code)]
 fn build_car_body_mesh(chassis_half_extents: Vec3) -> Mesh {
     #[derive(Clone, Copy)]
     struct SliceProfile {
@@ -459,6 +485,50 @@ fn build_tire_mesh(radius: f32, width: f32) -> Mesh {
     let mut mesh =
         Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions_array);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh.duplicate_vertices();
+    mesh.compute_flat_normals();
+
+    mesh
+}
+
+fn build_cabin_prism(
+    half_width: f32,
+    half_height: f32,
+    half_length_bottom: f32,
+    top_shrink_front: f32,
+    top_shrink_rear: f32,
+) -> Mesh {
+    let bf = -half_length_bottom;
+    let br = half_length_bottom;
+    let tf = bf + top_shrink_front;
+    let tr = br - top_shrink_rear;
+    let by = -half_height;
+    let ty = half_height;
+
+    let positions: Vec<[f32; 3]> = vec![
+        [-half_width, by, bf],
+        [half_width, by, bf],
+        [half_width, by, br],
+        [-half_width, by, br],
+        [-half_width, ty, tf],
+        [half_width, ty, tf],
+        [half_width, ty, tr],
+        [-half_width, ty, tr],
+    ];
+
+    let uvs: Vec<[f32; 2]> = vec![[0.0, 0.0]; 8];
+
+    let indices: Vec<u32> = vec![
+        0, 1, 2, 0, 2, 3,
+        4, 6, 5, 4, 7, 6,
+        0, 3, 7, 0, 7, 4,
+        1, 5, 6, 1, 6, 2,
+    ];
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     mesh.insert_indices(Indices::U32(indices));
     mesh.duplicate_vertices();
@@ -1004,8 +1074,38 @@ fn setup(
     ];
     let steering_flags = [true, true, false, false];
     let drive_flags = [true, true, true, true];
-    let chassis_mesh = meshes.add(build_car_body_mesh(chassis_half_extents));
     let tire_mesh = meshes.add(build_tire_mesh(WHEEL_RADIUS_DEFAULT, WHEEL_WIDTH_DEFAULT));
+
+    let lower_hull_mesh = meshes.add(Mesh::from(Cuboid::new(2.15, 0.55, 4.05)));
+    let hood_mesh = meshes.add(Mesh::from(Cuboid::new(1.88, 0.16, 1.3)));
+    let cabin_mesh = meshes.add(build_cabin_prism(0.96, 0.425, 1.15, 0.34, 0.282));
+    let roof_mesh = meshes.add(Mesh::from(Cuboid::new(1.96, 0.08, 2.0)));
+    let windshield_mesh = meshes.add(Mesh::from(Cuboid::new(1.92, 0.92, 0.05)));
+    let rear_window_mesh = meshes.add(Mesh::from(Cuboid::new(1.92, 0.895, 0.05)));
+    let side_window_mesh = meshes.add(Mesh::from(Cuboid::new(0.04, 0.4, 1.6)));
+    let front_bumper_mesh = meshes.add(Mesh::from(Cuboid::new(2.34, 0.3, 0.32)));
+    let rear_bumper_mesh = meshes.add(Mesh::from(Cuboid::new(2.34, 0.3, 0.28)));
+    let front_skid_mesh = meshes.add(Mesh::from(Cuboid::new(1.32, 0.1, 0.3)));
+    let rear_skid_mesh = meshes.add(Mesh::from(Cuboid::new(1.32, 0.1, 0.26)));
+    let grille_mesh = meshes.add(Mesh::from(Cuboid::new(1.28, 0.32, 0.06)));
+    let grille_slat_mesh = meshes.add(Mesh::from(Cuboid::new(1.3, 0.025, 0.07)));
+    let headlight_mesh = meshes.add(Mesh::from(Cuboid::new(0.44, 0.22, 0.1)));
+    let fog_light_mesh = meshes.add(Mesh::from(Cuboid::new(0.18, 0.12, 0.07)));
+    let taillight_mesh = meshes.add(Mesh::from(Cuboid::new(0.46, 0.24, 0.08)));
+    let plate_mesh = meshes.add(Mesh::from(Cuboid::new(0.55, 0.18, 0.03)));
+    let fender_flare_mesh = meshes.add(Mesh::from(Cuboid::new(0.22, 0.38, 1.0)));
+    let side_step_mesh = meshes.add(Mesh::from(Cuboid::new(0.2, 0.08, 2.4)));
+    let mirror_mesh = meshes.add(Mesh::from(Cuboid::new(0.1, 0.14, 0.25)));
+    let mirror_arm_mesh = meshes.add(Mesh::from(Cuboid::new(0.08, 0.04, 0.1)));
+    let rack_rail_mesh = meshes.add(Mesh::from(Cuboid::new(0.08, 0.1, 2.1)));
+    let rack_bar_mesh = meshes.add(Mesh::from(Cuboid::new(1.72, 0.06, 0.06)));
+    let light_bar_mesh = meshes.add(Mesh::from(Cuboid::new(1.45, 0.08, 0.1)));
+    let door_handle_mesh = meshes.add(Mesh::from(Cuboid::new(0.04, 0.04, 0.22)));
+    let exhaust_mesh = meshes.add(
+        CylinderMeshBuilder::new(0.065, 0.4, 16)
+            .segments(1)
+            .build(),
+    );
     let rim_mesh = meshes.add(
         CylinderMeshBuilder::new(WHEEL_RADIUS_DEFAULT * 0.58, WHEEL_WIDTH_DEFAULT * 0.72, 36)
             .segments(1)
@@ -1079,15 +1179,59 @@ fn setup(
         perceptual_roughness: 0.35,
         ..default()
     });
+    let trim_material = materials.add(StandardMaterial {
+        base_color: chassis_trim_color(),
+        metallic: 0.3,
+        perceptual_roughness: 0.55,
+        ..default()
+    });
+    let bumper_material = materials.add(StandardMaterial {
+        base_color: chassis_bumper_color(),
+        metallic: 0.1,
+        perceptual_roughness: 0.85,
+        ..default()
+    });
+    let glass_material = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.03, 0.05, 0.08),
+        metallic: 0.45,
+        perceptual_roughness: 0.09,
+        reflectance: 0.9,
+        ..default()
+    });
+    let headlight_material = materials.add(StandardMaterial {
+        base_color: chassis_headlight_color(),
+        emissive: Color::rgb(1.0, 0.95, 0.65),
+        metallic: 0.05,
+        perceptual_roughness: 0.12,
+        ..default()
+    });
+    let taillight_material = materials.add(StandardMaterial {
+        base_color: chassis_taillight_color(),
+        emissive: Color::rgb(0.9, 0.08, 0.05),
+        metallic: 0.1,
+        perceptual_roughness: 0.2,
+        ..default()
+    });
+    let chrome_material = materials.add(StandardMaterial {
+        base_color: chassis_chrome_color(),
+        metallic: 0.95,
+        perceptual_roughness: 0.12,
+        reflectance: 0.85,
+        ..default()
+    });
+    let grille_material = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.04, 0.04, 0.05),
+        metallic: 0.35,
+        perceptual_roughness: 0.5,
+        ..default()
+    });
 
     let car_spawn_height = terrain_height(0.0, 0.0, seed_value) + 2.5;
     let car_spawn_position = Vec3::new(0.0, car_spawn_height, 0.0);
 
     let chassis_entity = commands
         .spawn((
-            PbrBundle {
-                mesh: chassis_mesh.clone(),
-                material: chassis_material.clone(),
+            SpatialBundle {
                 transform: Transform::from_translation(car_spawn_position),
                 ..default()
             },
@@ -1118,6 +1262,292 @@ fn setup(
     let wheel_rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
     let mut wheel_entities: Vec<Entity> = Vec::with_capacity(WHEEL_COUNT);
     commands.entity(chassis_entity).with_children(|builder| {
+        builder.spawn((
+            PbrBundle {
+                mesh: lower_hull_mesh.clone(),
+                material: chassis_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.05, 0.0),
+                ..default()
+            },
+            Name::new("Lower Hull"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: hood_mesh.clone(),
+                material: chassis_material.clone(),
+                transform: Transform::from_xyz(0.0, 0.28, -1.38),
+                ..default()
+            },
+            Name::new("Hood"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: cabin_mesh.clone(),
+                material: chassis_material.clone(),
+                transform: Transform::from_xyz(0.0, 0.64, 0.2),
+                ..default()
+            },
+            Name::new("Cabin"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: roof_mesh.clone(),
+                material: trim_material.clone(),
+                transform: Transform::from_xyz(0.0, 1.11, 0.2),
+                ..default()
+            },
+            Name::new("Roof"),
+        ));
+
+        builder.spawn((
+            PbrBundle {
+                mesh: windshield_mesh.clone(),
+                material: glass_material.clone(),
+                transform: Transform {
+                    translation: Vec3::new(0.0, 0.64, -0.78),
+                    rotation: Quat::from_rotation_x(0.381),
+                    scale: Vec3::ONE,
+                },
+                ..default()
+            },
+            Name::new("Windshield"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: rear_window_mesh.clone(),
+                material: glass_material.clone(),
+                transform: Transform {
+                    translation: Vec3::new(0.0, 0.64, 1.209),
+                    rotation: Quat::from_rotation_x(-0.320),
+                    scale: Vec3::ONE,
+                },
+                ..default()
+            },
+            Name::new("Rear Window"),
+        ));
+        for (side, label) in [(-1.0_f32, "Left"), (1.0, "Right")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: side_window_mesh.clone(),
+                    material: glass_material.clone(),
+                    transform: Transform::from_xyz(side * 0.97, 0.8, 0.2),
+                    ..default()
+                },
+                Name::new(format!("Side Window {}", label)),
+            ));
+        }
+
+        builder.spawn((
+            PbrBundle {
+                mesh: front_bumper_mesh.clone(),
+                material: bumper_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.2, -2.18),
+                ..default()
+            },
+            Name::new("Front Bumper"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: front_skid_mesh.clone(),
+                material: chrome_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.33, -2.16),
+                ..default()
+            },
+            Name::new("Front Skid Plate"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: grille_mesh.clone(),
+                material: grille_material.clone(),
+                transform: Transform::from_xyz(0.0, 0.12, -2.05),
+                ..default()
+            },
+            Name::new("Grille"),
+        ));
+        for i in 0..3 {
+            let y = 0.0 + (i as f32) * 0.11;
+            builder.spawn((
+                PbrBundle {
+                    mesh: grille_slat_mesh.clone(),
+                    material: chrome_material.clone(),
+                    transform: Transform::from_xyz(0.0, y, -2.02),
+                    ..default()
+                },
+                Name::new(format!("Grille Slat {}", i + 1)),
+            ));
+        }
+        for (side, label) in [(-1.0_f32, "Left"), (1.0, "Right")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: headlight_mesh.clone(),
+                    material: headlight_material.clone(),
+                    transform: Transform::from_xyz(side * 0.85, 0.22, -2.1),
+                    ..default()
+                },
+                Name::new(format!("Headlight {}", label)),
+            ));
+            builder.spawn((
+                PbrBundle {
+                    mesh: fog_light_mesh.clone(),
+                    material: headlight_material.clone(),
+                    transform: Transform::from_xyz(side * 0.9, -0.14, -2.2),
+                    ..default()
+                },
+                Name::new(format!("Fog Light {}", label)),
+            ));
+        }
+
+        builder.spawn((
+            PbrBundle {
+                mesh: rear_bumper_mesh.clone(),
+                material: bumper_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.2, 2.16),
+                ..default()
+            },
+            Name::new("Rear Bumper"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: rear_skid_mesh.clone(),
+                material: chrome_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.33, 2.15),
+                ..default()
+            },
+            Name::new("Rear Skid Plate"),
+        ));
+        builder.spawn((
+            PbrBundle {
+                mesh: plate_mesh.clone(),
+                material: chrome_material.clone(),
+                transform: Transform::from_xyz(0.0, -0.05, 2.18),
+                ..default()
+            },
+            Name::new("License Plate"),
+        ));
+        for (side, label) in [(-1.0_f32, "Left"), (1.0, "Right")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: taillight_mesh.clone(),
+                    material: taillight_material.clone(),
+                    transform: Transform::from_xyz(side * 0.88, 0.12, 2.10),
+                    ..default()
+                },
+                Name::new(format!("Taillight {}", label)),
+            ));
+        }
+
+        let flare_positions = [
+            (-1.08_f32, -1.45_f32, "Front Left"),
+            (1.08, -1.45, "Front Right"),
+            (-1.08, 1.45, "Rear Left"),
+            (1.08, 1.45, "Rear Right"),
+        ];
+        for (x, z, label) in flare_positions {
+            builder.spawn((
+                PbrBundle {
+                    mesh: fender_flare_mesh.clone(),
+                    material: trim_material.clone(),
+                    transform: Transform::from_xyz(x, -0.08, z),
+                    ..default()
+                },
+                Name::new(format!("Fender Flare {}", label)),
+            ));
+        }
+
+        for (side, label) in [(-1.0_f32, "Left"), (1.0, "Right")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: side_step_mesh.clone(),
+                    material: trim_material.clone(),
+                    transform: Transform::from_xyz(side * 1.15, -0.44, 0.0),
+                    ..default()
+                },
+                Name::new(format!("Side Step {}", label)),
+            ));
+            builder.spawn((
+                PbrBundle {
+                    mesh: door_handle_mesh.clone(),
+                    material: chrome_material.clone(),
+                    transform: Transform::from_xyz(side * 0.98, 0.48, -0.15),
+                    ..default()
+                },
+                Name::new(format!("Front Door Handle {}", label)),
+            ));
+            builder.spawn((
+                PbrBundle {
+                    mesh: door_handle_mesh.clone(),
+                    material: chrome_material.clone(),
+                    transform: Transform::from_xyz(side * 0.98, 0.48, 0.95),
+                    ..default()
+                },
+                Name::new(format!("Rear Door Handle {}", label)),
+            ));
+            builder.spawn((
+                PbrBundle {
+                    mesh: mirror_arm_mesh.clone(),
+                    material: trim_material.clone(),
+                    transform: Transform::from_xyz(side * 0.98, 0.62, -0.75),
+                    ..default()
+                },
+                Name::new(format!("Mirror Arm {}", label)),
+            ));
+            builder.spawn((
+                PbrBundle {
+                    mesh: mirror_mesh.clone(),
+                    material: chassis_material.clone(),
+                    transform: Transform::from_xyz(side * 1.05, 0.62, -0.78),
+                    ..default()
+                },
+                Name::new(format!("Side Mirror {}", label)),
+            ));
+        }
+
+        for (side, label) in [(-1.0_f32, "Left"), (1.0, "Right")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: rack_rail_mesh.clone(),
+                    material: trim_material.clone(),
+                    transform: Transform::from_xyz(side * 0.85, 1.19, 0.2),
+                    ..default()
+                },
+                Name::new(format!("Roof Rail {}", label)),
+            ));
+        }
+        for (z, label) in [(-0.75_f32, "Front"), (0.25, "Center"), (1.10, "Rear")] {
+            builder.spawn((
+                PbrBundle {
+                    mesh: rack_bar_mesh.clone(),
+                    material: trim_material.clone(),
+                    transform: Transform::from_xyz(0.0, 1.21, z),
+                    ..default()
+                },
+                Name::new(format!("Roof Bar {}", label)),
+            ));
+        }
+        builder.spawn((
+            PbrBundle {
+                mesh: light_bar_mesh.clone(),
+                material: headlight_material.clone(),
+                transform: Transform::from_xyz(0.0, 1.26, -0.55),
+                ..default()
+            },
+            Name::new("Roof Light Bar"),
+        ));
+
+        builder.spawn((
+            PbrBundle {
+                mesh: exhaust_mesh.clone(),
+                material: chrome_material.clone(),
+                transform: Transform {
+                    translation: Vec3::new(-0.75, -0.38, 2.25),
+                    rotation: Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+                    scale: Vec3::ONE,
+                },
+                ..default()
+            },
+            Name::new("Exhaust Pipe"),
+        ));
+
         for (index, offset) in wheel_positions.iter().enumerate() {
             let steering = steering_flags[index];
             let drive = drive_flags[index];
